@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Flask
+instance/
+.webassets-cache
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Custom prompts (optional - uncomment if you want to ignore custom prompts)
+# prompts/system_prompt.custom.txt
+# prompts/user_prompt_template.custom.txt

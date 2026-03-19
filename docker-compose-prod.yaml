@@ -1,0 +1,20 @@
+services:
+  web:
+    image: enricocostanzi/test-case-generator:latest
+    ports:
+      - "5000:5000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-5-20250929}
+      - MAX_TOKENS=${MAX_TOKENS:-4000}
+      - TEMPERATURE=${TEMPERATURE:-0.3}
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+    env_file:
+      - .env    
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
