@@ -1,0 +1,48 @@
+Analyze the following user story and generate test cases for each acceptance criterion.
+
+USER STORY:
+{user_story}
+
+For each acceptance criterion, provide:
+1. A concise Jira test case title
+2. A short description of what the test validates (1-2 sentences)
+3. A simplified Gherkin scenario
+
+OUTPUT FORMAT (JSON):
+{{
+  "test_cases": [
+    {{
+      "ac_number": <number>,
+      "original_ac": "<full original text>",
+      "title": "<test case title>",
+      "description": "<short description>",
+      "gherkin": "<GIVEN/WHEN/THEN scenario>"
+    }}
+  ]
+}}
+
+GHERKIN FORMAT RULES:
+- Use proper Gherkin case: "Given", "When", "Then", "And" (only first letter uppercase)
+- Given: Start with "Given I am logged in with <ROLE>" or "Given I am not authenticated"
+- Given: Include all preconditions with "And" clauses (e.g., "And the participant exists")
+- When: Describe the action clearly (e.g., "When I send a POST /participants/{{participantId}}/credentials request")
+- Then: Include ONLY status code verification and response body checks (if needed)
+- Keep it concise and focused on the behavior being tested
+- Example format:
+  Given I am logged in with IATTR_M role
+  And the participant with the specified participantId exists
+  When I send a POST /participants/{{participantId}}/credentials request
+  Then I get a 200 OK response
+
+TITLE FORMAT RULES:
+- 50-80 characters
+- Format: "Test [action] - [condition] - [expected result]"
+- Example: "Test credential issuance - IATTR_M role - returns 200 OK"
+
+DESCRIPTION FORMAT RULES:
+- Format: "AC {{number}}\n{{short description}}"
+- The description should be 1-2 concise sentences describing what the test validates
+- Focus on the business scenario and expected behavior
+- Example: "AC 1\nThis test validates that a user with the IATTR_M role can successfully request credential issuance when the participant exists."
+
+Return ONLY the JSON object, nothing else.

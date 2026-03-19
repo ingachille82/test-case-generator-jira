@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Test Cases - Test Case Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Review & Edit Test Cases</h1>
+            <p class="subtitle">Review generated test cases and create or update them in Jira</p>
+            <a href="/" class="btn-link">← Back to Input</a>
+        </header>
+
+        <main>
+            <div class="action-bar">
+                <div class="status">
+                    <span id="totalCount">{{ test_cases.test_cases|length }}</span> test case(s) generated
+                </div>
+            </div>
+
+            <div id="testCases">
+                {% for tc in test_cases.test_cases %}
+                <div class="test-case-container" data-index="{{ loop.index0 }}">
+                    <div class="test-case-header">
+                        <h3>Test Case {{ loop.index }}</h3>
+                        <span class="ac-number">AC #{{ tc.ac_number }}</span>
+                    </div>
+
+                    {% if existing_test_cases.get(tc.ac_number) %}
+                    <div class="existing-test-cases-notice">
+                        <h4>⚠️ Existing Test Cases Found</h4>
+                        <p>The following test case(s) already exist in Jira for this acceptance criterion:</p>
+                        {% for existing_tc in existing_test_cases[tc.ac_number] %}
+                        <div class="existing-test-case">
+                            <div class="existing-header">
+                                <a href="{{ existing_tc.url }}" target="_blank" class="jira-link">
+                                    {{ existing_tc.key }}
+                                </a>
+                                <span class="status-badge status-{{ existing_tc.status|lower|replace(' ', '-') }}">
+                                    {{ existing_tc.status }}
+                                </span>
+                            </div>
+                            <p class="existing-summary"><strong>Title:</strong> {{ existing_tc.summary }}</p>
+                            {% if existing_tc.gherkin %}
+                            <div class="existing-gherkin">
+                                <strong>Current Gherkin:</strong>
+                                <pre class="gherkin-text">{{ existing_tc.gherkin }}</pre>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="side-by-side">
+                        <div class="generated-side">
+                            <div class="field">
+                                <label>Original Acceptance Criterion:</label>
+                                <p class="generated-content ac-text">{{ tc.original_ac }}</p>
+                            </div>
+                        </div>
+
+                        <div class="editable-side">
+                            <h4>Edit</h4>
+                            <div class="field">
+                                <label for="title-{{ loop.index0 }}">Title:</label>
+                                <input type="text"
+                                       id="title-{{ loop.index0 }}"
+                                       class="edit-title"
+                                       value="{{ tc.title }}"
+                                       maxlength="255">
+                                <span class="char-count" id="count-{{ loop.index0 }}">{{ tc.title|length }}/255</span>
+                            </div>
+                            <div class="field">
+                                <label for="description-{{ loop.index0 }}">Description:</label>
+                                <textarea id="description-{{ loop.index0 }}"
+                                          class="edit-description"
+                                          rows="3">{{ tc.description }}</textarea>
+                            </div>
+                            <div class="field">
+                                <label for="gherkin-{{ loop.index0 }}">Gherkin Scenario:</label>
+                                <textarea id="gherkin-{{ loop.index0 }}"
+                                          class="edit-gherkin"
+                                          rows="8">{{ tc.gherkin }}</textarea>
+                            </div>
+
+                            {% if test_plans %}
+                            <div class="field">
+                                {% set tc_index = loop.index0 %}
+                                <label for="test-plan-{{ tc_index }}">Test Plan (required):</label>
+                                <select id="test-plan-{{ tc_index }}" class="test-plan-select">
+                                    <option value="">-- Select a Test Plan --</option>
+                                    {% for plan in test_plans %}
+                                    <option value="{{ plan.key }}">{{ plan.display }}</option>
+                                    {% endfor %}
+                                </select>
+                                <span class="validation-message" id="test-plan-validation-{{ tc_index }}" style="display: none; color: red; font-size: 0.9em;">
+                                    Please select a test plan
+                                </span>
+                            </div>
+                            {% endif %}
+
+                            {% if default_labels or required_labels %}
+                            <div class="labels-section">
+                                <h5>Labels</h5>
+
+                                {% if default_labels %}
+                                <div class="field">
+                                    <label>Default Labels (always applied):</label>
+                                    <div class="labels-display">
+                                        {% for label in default_labels %}
+                                        <span class="label-badge default-label">{{ label }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                {% if required_labels %}
+                                <div class="field">
+                                    {% set tc_index = loop.index0 %}
+                                    <label for="required-labels-{{ tc_index }}">Required Labels (select at least one):</label>
+                                    <div class="multiselect-container">
+                                        {% for label in required_labels %}
+                                        <label class="checkbox-label">
+                                            <input type="checkbox"
+                                                   name="required-labels-{{ tc_index }}"
+                                                   value="{{ label }}"
+                                                   class="label-checkbox required-label-checkbox"
+                                                   data-index="{{ tc_index }}">
+                                            {{ label }}
+                                        </label>
+                                        {% endfor %}
+                                    </div>
+                                    <span class="validation-message" id="label-validation-{{ tc_index }}" style="display: none; color: red; font-size: 0.9em;">
+                                        Please select at least one required label
+                                    </span>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+
+                            <div class="jira-action-buttons">
+                                {% set has_existing = existing_test_cases.get(tc.ac_number) %}
+                                <button onclick="createJiraTest({{ loop.index0 }})"
+                                        class="btn-jira-create"
+                                        id="create-{{ loop.index0 }}"
+                                        {% if has_existing %}disabled{% endif %}>
+                                    ➕ Create in Jira
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="notification" id="notification" style="display: none;"></div>
+        </main>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" onclick="closeConfirmModal()">&times;</span>
+            <h2 id="confirmTitle">Confirm Action</h2>
+            <p id="confirmMessage">Are you sure you want to proceed?</p>
+            <div class="modal-buttons">
+                <button onclick="closeConfirmModal()" class="btn-secondary">Cancel</button>
+                <button onclick="confirmAction()" class="btn-primary" id="confirmBtn">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const testCasesData = {{ test_cases.test_cases | tojson }};
+        const hasRequiredLabels = {% if required_labels %}true{% else %}false{% endif %};
+        const hasTestPlans = {% if test_plans %}true{% else %}false{% endif %};
+
+        // Update character count on title input
+        document.querySelectorAll('.edit-title').forEach((input, index) => {
+            input.addEventListener('input', function() {
+                const count = this.value.length;
+                document.getElementById(`count-${index}`).textContent = `${count}/255`;
+            });
+        });
+
+        function showNotification(message, type) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type}`;
+            notification.style.display = 'block';
+
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 3000);
+        }
+
+        // Get selected labels for a test case
+        function getSelectedLabels(index) {
+            const checkboxes = document.querySelectorAll(`input[name="required-labels-${index}"]:checked`);
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+
+        // Get selected test plan for a test case
+        function getSelectedTestPlan(index) {
+            if (!hasTestPlans) {
+                return null;
+            }
+            const select = document.getElementById(`test-plan-${index}`);
+            return select ? select.value : null;
+        }
+
+        // Validate that at least one required label is selected
+        function validateLabels(index) {
+            if (!hasRequiredLabels) {
+                return true;
+            }
+
+            const selectedLabels = getSelectedLabels(index);
+            const validationMessage = document.getElementById(`label-validation-${index}`);
+
+            if (selectedLabels.length === 0) {
+                if (validationMessage) {
+                    validationMessage.style.display = 'block';
+                }
+                return false;
+            }
+
+            if (validationMessage) {
+                validationMessage.style.display = 'none';
+            }
+            return true;
+        }
+
+        // Validate that a test plan is selected
+        function validateTestPlan(index) {
+            if (!hasTestPlans) {
+                return true;
+            }
+
+            const testPlanKey = getSelectedTestPlan(index);
+            const validationMessage = document.getElementById(`test-plan-validation-${index}`);
+
+            if (!testPlanKey) {
+                if (validationMessage) {
+                    validationMessage.style.display = 'block';
+                }
+                return false;
+            }
+
+            if (validationMessage) {
+                validationMessage.style.display = 'none';
+            }
+            return true;
+        }
+
+        // Jira Test Creation/Update functionality
+        let pendingAction = null;
+
+        function createJiraTest(index) {
+            const title = document.getElementById(`title-${index}`).value;
+            const description = document.getElementById(`description-${index}`).value;
+            const gherkin = document.getElementById(`gherkin-${index}`).value;
+            const originalData = testCasesData[index];
+
+            if (!title.trim() || !description.trim() || !gherkin.trim()) {
+                showNotification('Please fill in title, description, and Gherkin scenario', 'error');
+                return;
+            }
+
+            // Validate labels
+            if (!validateLabels(index)) {
+                showNotification('Please select at least one required label', 'error');
+                return;
+            }
+
+            // Validate test plan
+            if (!validateTestPlan(index)) {
+                showNotification('Please select a test plan', 'error');
+                return;
+            }
+
+            const selectedLabels = getSelectedLabels(index);
+            const testPlanKey = getSelectedTestPlan(index);
+
+            const data = {
+                title: title,
+                description: description,
+                gherkin: gherkin,
+                ac_number: originalData.ac_number,
+                labels: selectedLabels
+            };
+
+            // Add test plan if selected
+            if (testPlanKey) {
+                data.test_plan_key = testPlanKey;
+            }
+
+            pendingAction = {
+                type: 'create',
+                index: index,
+                data: data
+            };
+
+            showConfirmModal(
+                'Create Test in Jira',
+                `Are you sure you want to create a new test case in Jira?<br><br><strong>Title:</strong> ${title}`
+            );
+        }
+
+
+        function showConfirmModal(title, message) {
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmMessage').innerHTML = message;
+            document.getElementById('confirmModal').style.display = 'block';
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').style.display = 'none';
+            pendingAction = null;
+        }
+
+        async function confirmAction() {
+            if (!pendingAction) return;
+
+            const confirmBtn = document.getElementById('confirmBtn');
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = 'Processing...';
+
+            try {
+                if (pendingAction.type === 'create') {
+                    await executeCreateTest(pendingAction.data);
+                }
+            } finally {
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Confirm';
+                closeConfirmModal();
+            }
+        }
+
+        async function executeCreateTest(data) {
+            try {
+                const response = await fetch('/jira/create-test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showNotification(`Test case created successfully: ${result.key}`, 'success');
+                    // Optionally reload page or update UI
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    throw new Error(result.error || 'Failed to create test case');
+                }
+            } catch (error) {
+                showNotification('Error: ' + error.message, 'error');
+            }
+        }
+
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('confirmModal');
+            if (event.target == modal) {
+                closeConfirmModal();
+            }
+        }
+    </script>
+</body>
+</html>

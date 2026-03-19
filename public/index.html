@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gherkin → Jira</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:#0d0f14; --surface:#13161e; --border:#1f2433; --border-hi:#2e3650;
+    --accent:#4f8ef7; --accent-lo:rgba(79,142,247,.12); --accent-hi:#7aaeff;
+    --green:#3ecf8e; --yellow:#f7c948; --red:#f76f6f;
+    --text:#e2e6f0; --muted:#5a6282;
+    --mono:'DM Mono',monospace; --sans:'DM Sans',sans-serif;
+  }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:48px 24px 80px; }
+  body::before { content:''; position:fixed; inset:0; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"); pointer-events:none; z-index:0; }
+  body::after { content:''; position:fixed; width:600px; height:600px; top:-100px; left:50%; transform:translateX(-50%); background:radial-gradient(circle,rgba(79,142,247,.08) 0%,transparent 70%); pointer-events:none; z-index:0; }
+  .wrap { position:relative; z-index:1; width:100%; max-width:680px; display:flex; flex-direction:column; gap:32px; }
+
+  header { text-align:center; }
+  .logo { display:inline-flex; align-items:center; gap:10px; font-family:var(--mono); font-size:11px; letter-spacing:.2em; color:var(--muted); text-transform:uppercase; margin-bottom:24px; }
+  .logo-dot { width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow:0 0 8px var(--accent); animation:pulse 2.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
+  h1 { font-size:clamp(26px,5vw,38px); font-weight:300; letter-spacing:-.02em; line-height:1.15; }
+  h1 span { color:var(--accent); font-weight:500; }
+  .subtitle { margin-top:10px; font-size:14px; color:var(--muted); font-weight:300; line-height:1.6; }
+
+  .tabs { display:flex; gap:4px; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:4px; }
+  .tab { flex:1; padding:10px 16px; border:none; border-radius:9px; background:transparent; color:var(--muted); font-family:var(--sans); font-size:13px; font-weight:500; cursor:pointer; transition:all .2s; display:flex; align-items:center; justify-content:center; gap:8px; }
+  .tab:hover { color:var(--text); }
+  .tab.active { background:var(--accent-lo); color:var(--accent); border:1px solid rgba(79,142,247,.2); }
+  .tab-badge { font-family:var(--mono); font-size:10px; background:var(--border); color:var(--muted); padding:2px 6px; border-radius:4px; }
+  .tab.active .tab-badge { background:rgba(79,142,247,.2); color:var(--accent); }
+
+  .panel { display:none; flex-direction:column; gap:24px; }
+  .panel.active { display:flex; }
+
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:32px; display:flex; flex-direction:column; gap:24px; }
+  .section-title { font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); padding-bottom:16px; border-bottom:1px solid var(--border); }
+
+  .field { display:flex; flex-direction:column; gap:8px; }
+  label { font-family:var(--mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+  .hint { font-size:12px; color:var(--muted); line-height:1.5; margin-top:2px; }
+  .hint code { font-family:var(--mono); color:var(--accent-hi); background:var(--accent-lo); padding:1px 5px; border-radius:3px; }
+
+  input[type="text"] { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px 16px; font-family:var(--mono); font-size:14px; color:var(--text); outline:none; transition:border-color .2s,box-shadow .2s; }
+  input[type="text"]:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-lo); }
+  input[type="text"]::placeholder { color:var(--muted); }
+
+  .drop-zone { position:relative; background:var(--bg); border:1.5px dashed var(--border-hi); border-radius:12px; padding:40px 24px; display:flex; flex-direction:column; align-items:center; gap:12px; cursor:pointer; transition:border-color .2s,background .2s; text-align:center; }
+  .drop-zone:hover,.drop-zone.over { border-color:var(--accent); background:var(--accent-lo); }
+  .drop-zone input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+  .drop-icon { width:44px; height:44px; border:1px solid var(--border-hi); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:20px; }
+  .drop-zone:hover .drop-icon { border-color:var(--accent); }
+  .drop-title { font-size:14px; font-weight:500; color:var(--text); }
+  .drop-title span { color:var(--accent); }
+  .drop-sub { font-family:var(--mono); font-size:11px; color:var(--muted); }
+
+  .file-selected { display:none; align-items:center; gap:12px; background:var(--accent-lo); border:1px solid var(--accent); border-radius:10px; padding:14px 18px; }
+  .file-selected.show { display:flex; }
+  .file-icon { font-size:22px; }
+  .file-info { flex:1; }
+  .file-name { font-family:var(--mono); font-size:13px; color:var(--accent-hi); }
+  .file-size { font-family:var(--mono); font-size:11px; color:var(--muted); margin-top:2px; }
+  .file-remove { background:none; border:none; cursor:pointer; color:var(--muted); font-size:18px; line-height:1; padding:4px; transition:color .2s; }
+  .file-remove:hover { color:var(--red); }
+
+  .divider { height:1px; background:var(--border); border:none; margin:0; }
+
+  .btn { border:none; border-radius:10px; padding:14px 24px; font-family:var(--sans); font-size:15px; font-weight:500; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:background .2s,transform .1s,box-shadow .2s; }
+  .btn-primary { background:var(--accent); color:#fff; box-shadow:0 4px 20px rgba(79,142,247,.3); }
+  .btn-primary:hover:not(:disabled) { background:var(--accent-hi); box-shadow:0 6px 28px rgba(79,142,247,.45); transform:translateY(-1px); }
+  .btn-secondary { background:rgba(247,201,72,.1); color:var(--yellow); border:1px solid rgba(247,201,72,.25); }
+  .btn-secondary:hover:not(:disabled) { background:rgba(247,201,72,.18); transform:translateY(-1px); }
+  .btn:active:not(:disabled) { transform:translateY(0); }
+  .btn:disabled { opacity:.45; cursor:not-allowed; box-shadow:none; }
+  .btn .spinner { display:none; width:16px; height:16px; border:2px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; }
+  .btn.loading .spinner { display:block; }
+  .btn.loading .btn-text { opacity:.6; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  .result { border-radius:12px; padding:20px 24px; display:none; flex-direction:column; gap:12px; animation:fadeUp .35s ease; }
+  .result.show { display:flex; }
+  .result.success { background:rgba(62,207,142,.08); border:1px solid rgba(62,207,142,.25); }
+  .result.error   { background:rgba(247,111,111,.08); border:1px solid rgba(247,111,111,.25); }
+  .result.warning { background:rgba(247,201,72,.08);  border:1px solid rgba(247,201,72,.25); }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  .result-header { display:flex; align-items:center; gap:10px; font-weight:500; font-size:15px; }
+  .result.success .result-header { color:var(--green); }
+  .result.error   .result-header { color:var(--red); }
+  .result.warning .result-header { color:var(--yellow); }
+  .result-body { font-family:var(--mono); font-size:12px; color:var(--muted); line-height:1.7; }
+
+  .item-list { display:flex; flex-direction:column; gap:8px; margin-top:4px; }
+  .item { display:flex; align-items:center; gap:10px; background:rgba(255,255,255,.03); border:1px solid var(--border); border-radius:8px; padding:10px 14px; flex-wrap:wrap; }
+  .item-key { font-family:var(--mono); font-size:12px; color:var(--accent); white-space:nowrap; }
+  .item-title { font-size:13px; color:var(--text); flex:1; min-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .item-link { font-family:var(--mono); font-size:11px; color:var(--muted); text-decoration:none; transition:color .2s; }
+  .item-link:hover { color:var(--accent); }
+  .item-tags { display:flex; gap:4px; flex-wrap:wrap; }
+  .tag-pill { font-family:var(--mono); font-size:10px; padding:2px 7px; border-radius:4px; }
+  .tag-existing { background:var(--border); color:var(--muted); }
+  .item-status { font-family:var(--mono); font-size:11px; white-space:nowrap; margin-left:auto; }
+  .status-ok       { color:var(--green); }
+  .status-skip     { color:var(--yellow); }
+  .status-error    { color:var(--red); }
+  .status-nochange { color:var(--muted); }
+
+  footer { font-family:var(--mono); font-size:11px; color:var(--muted); text-align:center; letter-spacing:.05em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo"><div class="logo-dot"></div>Gherkin to Jira<div class="logo-dot"></div></div>
+    <h1>Gestisci scenari <span>Gherkin</span><br>su Jira</h1>
+    <p class="subtitle">Crea Test da feature file o aggiorna le label degli scenari esistenti.</p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('create',this)">
+      🧪 Crea Test <span class="tab-badge">/api/gherkin-to-jira</span>
+    </button>
+    <button class="tab" onclick="switchTab('labels',this)">
+      🏷️ Aggiorna Label <span class="tab-badge">/api/update-labels</span>
+    </button>
+  </div>
+
+  <!-- PANEL CREATE -->
+  <div class="panel active" id="panel-create">
+    <div class="card">
+      <div class="section-title">Crea Test da Feature File</div>
+      <div class="field">
+        <label>User Story Key</label>
+        <input type="text" id="storyKey" placeholder="es. SCRUM-9" autocomplete="off" spellcheck="false">
+      </div>
+      <hr class="divider">
+      <div class="field">
+        <label>Feature File</label>
+        <div class="drop-zone" id="dropZone1">
+          <input type="file" id="fileInput1" accept=".feature,.txt">
+          <div class="drop-icon">📄</div>
+          <div class="drop-title"><span>Clicca per caricare</span> o trascina qui</div>
+          <div class="drop-sub">.feature — max 1 MB</div>
+        </div>
+        <div class="file-selected" id="fileSelected1">
+          <div class="file-icon">✅</div>
+          <div class="file-info">
+            <div class="file-name" id="fileName1"></div>
+            <div class="file-size" id="fileSize1"></div>
+          </div>
+          <button class="file-remove" onclick="clearFile(1)">✕</button>
+        </div>
+      </div>
+      <hr class="divider">
+      <button class="btn btn-primary" id="submitCreate" disabled onclick="submitCreate()">
+        <div class="spinner"></div><span class="btn-text">Crea Test su Jira →</span>
+      </button>
+    </div>
+    <div class="result" id="resultCreate">
+      <div class="result-header" id="resultCreateHeader"></div>
+      <div class="result-body"   id="resultCreateBody"></div>
+      <div class="item-list"     id="resultCreateList"></div>
+    </div>
+  </div>
+
+  <!-- PANEL LABELS -->
+  <div class="panel" id="panel-labels">
+    <div class="card">
+      <div class="section-title">Aggiorna Label scenari esistenti</div>
+      <div class="field">
+        <label>Feature File aggiornato</label>
+        <p class="hint">
+          Ogni scenario deve avere il tag con la Jira key:<br>
+          <code>@SCRUM-14 @AC1 @Automated_UI</code>
+        </p>
+        <div class="drop-zone" id="dropZone2">
+          <input type="file" id="fileInput2" accept=".feature,.txt">
+          <div class="drop-icon">📄</div>
+          <div class="drop-title"><span>Clicca per caricare</span> o trascina qui</div>
+          <div class="drop-sub">.feature — max 1 MB</div>
+        </div>
+        <div class="file-selected" id="fileSelected2">
+          <div class="file-icon">✅</div>
+          <div class="file-info">
+            <div class="file-name" id="fileName2"></div>
+            <div class="file-size" id="fileSize2"></div>
+          </div>
+          <button class="file-remove" onclick="clearFile(2)">✕</button>
+        </div>
+      </div>
+      <hr class="divider">
+      <button class="btn btn-secondary" id="submitLabels" disabled onclick="submitLabels()">
+        <div class="spinner"></div><span class="btn-text">Aggiorna Label su Jira →</span>
+      </button>
+    </div>
+    <div class="result" id="resultLabels">
+      <div class="result-header" id="resultLabelsHeader"></div>
+      <div class="result-body"   id="resultLabelsBody"></div>
+      <div class="item-list"     id="resultLabelsList"></div>
+    </div>
+  </div>
+
+  <footer>localhost:3000 &nbsp;·&nbsp; Gherkin→Jira API v1.1</footer>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const files = {1:null, 2:null};
+
+  function formatBytes(b){ return b<1024 ? b+' B' : (b/1024).toFixed(1)+' KB'; }
+
+  function switchTab(name, el){
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    el.classList.add('active');
+    $('panel-'+name).classList.add('active');
+  }
+
+  function setFile(n, file){
+    if(!file) return;
+    files[n]=file;
+    $('dropZone'+n).style.display='none';
+    $('fileName'+n).textContent=file.name;
+    $('fileSize'+n).textContent=formatBytes(file.size);
+    $('fileSelected'+n).classList.add('show');
+    checkReady(n);
+  }
+
+  function clearFile(n){
+    files[n]=null;
+    $('fileInput'+n).value='';
+    $('fileSelected'+n).classList.remove('show');
+    $('dropZone'+n).style.display='';
+    checkReady(n);
+  }
+
+  function checkReady(n){
+    if(n===1) $('submitCreate').disabled = !(files[1] && $('storyKey').value.trim());
+    if(n===2) $('submitLabels').disabled = !files[2];
+  }
+
+  $('fileInput1').addEventListener('change', ()=>setFile(1,$('fileInput1').files[0]));
+  $('fileInput2').addEventListener('change', ()=>setFile(2,$('fileInput2').files[0]));
+  $('storyKey').addEventListener('input', ()=>checkReady(1));
+
+  [1,2].forEach(n=>{
+    const dz=$('dropZone'+n);
+    dz.addEventListener('dragover', e=>{e.preventDefault();dz.classList.add('over');});
+    dz.addEventListener('dragleave', ()=>dz.classList.remove('over'));
+    dz.addEventListener('drop', e=>{e.preventDefault();dz.classList.remove('over');const f=e.dataTransfer.files[0];if(f)setFile(n,f);});
+  });
+
+  async function submitCreate(){
+    const btn=$('submitCreate'), key=$('storyKey').value.trim();
+    if(!key||!files[1]) return;
+    btn.classList.add('loading'); btn.disabled=true;
+    $('resultCreate').classList.remove('show','success','error');
+    $('resultCreateList').innerHTML='';
+    try {
+      const content=await files[1].text();
+      const res=await fetch('/api/gherkin-to-jira',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userStoryKey:key,gherkinContent:content})});
+      const data=await res.json();
+      if(!res.ok) throw new Error(data.error||'Errore sconosciuto');
+      $('resultCreate').classList.add('show','success');
+      $('resultCreateHeader').textContent=`✓ ${data.message}`;
+      $('resultCreateBody').textContent=`User Story: ${data.userStoryKey}`;
+      data.tests.forEach(t=>{
+        const el=document.createElement('div'); el.className='item';
+        el.innerHTML=`<span class="item-key">${t.testKey}</span><span class="item-title">${t.scenarioTitle}</span><a class="item-link" href="${t.testUrl}" target="_blank">apri ↗</a>`;
+        $('resultCreateList').appendChild(el);
+      });
+    } catch(err){
+      $('resultCreate').classList.add('show','error');
+      $('resultCreateHeader').textContent='✕ Errore';
+      $('resultCreateBody').textContent=err.message;
+    } finally { btn.classList.remove('loading'); btn.disabled=false; }
+  }
+
+  async function submitLabels(){
+    const btn=$('submitLabels');
+    if(!files[2]) return;
+    btn.classList.add('loading'); btn.disabled=true;
+    $('resultLabels').classList.remove('show','success','error','warning');
+    $('resultLabelsList').innerHTML='';
+    try {
+      const content=await files[2].text();
+      const res=await fetch('/api/update-labels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({gherkinContent:content})});
+      const data=await res.json();
+      if(!res.ok) throw new Error(data.error||'Errore sconosciuto');
+      const hasErrors=data.results.some(r=>r.error);
+      $('resultLabels').classList.add('show', hasErrors?'warning':'success');
+      $('resultLabelsHeader').textContent=(hasErrors?'⚠ ':'✓ ')+data.message;
+      data.results.forEach(r=>{
+        const el=document.createElement('div'); el.className='item';
+        if(r.skipped){
+          el.innerHTML=`<span class="item-title" style="color:var(--muted)">${r.scenarioTitle}</span><span class="item-status status-skip">saltato — nessun tag Jira key</span>`;
+        } else if(r.error){
+          el.innerHTML=`<span class="item-key">${r.issueKey}</span><span class="item-title">${r.scenarioTitle}</span><span class="item-status status-error">errore</span>`;
+        } else {
+          const pills=(r.labels||[]).map(l=>`<span class="tag-pill tag-existing">${l}</span>`).join('');
+          const status=r.changed?`<span class="item-status status-ok">✓ aggiornato</span>`:`<span class="item-status status-nochange">invariato</span>`;
+          el.innerHTML=`<span class="item-key">${r.issueKey}</span><span class="item-title">${r.scenarioTitle}</span><div class="item-tags">${pills}</div>${status}`;
+        }
+        $('resultLabelsList').appendChild(el);
+      });
+    } catch(err){
+      $('resultLabels').classList.add('show','error');
+      $('resultLabelsHeader').textContent='✕ Errore';
+      $('resultLabelsBody').textContent=err.message;
+    } finally { btn.classList.remove('loading'); btn.disabled=false; }
+  }
+</script>
+</body>
+</html>

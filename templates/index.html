@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Case Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body data-claude-enabled="{{ 'true' if claude_enabled else 'false' }}">
+    <div class="container">
+        <header>
+            <h1>Test Case Generator</h1>
+            <p class="subtitle">
+                {% if claude_enabled %}
+                Generate Jira test cases from user story acceptance criteria using Claude AI
+                {% else %}
+                Create Jira test cases manually from user story acceptance criteria
+                {% endif %}
+            </p>
+            {% if not claude_enabled %}
+            <div class="info-banner">
+                <strong>Manual Mode:</strong> Claude AI is not configured. You can still fetch Jira stories and create test cases manually.
+            </div>
+            {% endif %}
+        </header>
+
+        <main>
+            <div class="input-section">
+                <h2>Fetch User Story from Jira</h2>
+
+                {% if not jira_enabled %}
+                <div class="error">
+                    <p><strong>Jira integration is not configured.</strong></p>
+                    <p>Please configure JIRA_URL and JIRA_API_TOKEN in your .env file to use this application.</p>
+                </div>
+                {% else %}
+                <p class="help-text">
+                    Enter a Jira issue key to fetch the user story and generate test cases.
+                </p>
+
+                <div class="jira-input-group">
+                    <input
+                        type="text"
+                        id="jiraIssueKey"
+                        placeholder="e.g., SIMPL-1234"
+                        class="jira-input"
+                        autofocus>
+                    <button onclick="fetchAndGenerateTestCases()" class="btn-primary" id="generateBtn">
+                        {% if claude_enabled %}
+                        Fetch & Generate Test Cases
+                        {% else %}
+                        Fetch Story & Create Test Cases
+                        {% endif %}
+                    </button>
+                </div>
+
+                <div id="jiraMetadata" class="jira-metadata" style="display: none;">
+                    <h3>Issue Details</h3>
+                    <div class="metadata-grid">
+                        <div class="metadata-item">
+                            <span class="label">Key:</span>
+                            <span id="meta-key"></span>
+                        </div>
+                        <div class="metadata-item">
+                            <span class="label">Type:</span>
+                            <span id="meta-type"></span>
+                        </div>
+                        <div class="metadata-item">
+                            <span class="label">Status:</span>
+                            <span id="meta-status"></span>
+                        </div>
+                        <div class="metadata-item">
+                            <span class="label">Assignee:</span>
+                            <span id="meta-assignee"></span>
+                        </div>
+                        <div class="metadata-item">
+                            <span class="label">Existing Tests:</span>
+                            <span id="meta-tests"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="loading" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p id="loadingMessage">Fetching story from Jira...</p>
+                </div>
+
+                <div id="error" class="error" style="display: none;"></div>
+                {% endif %}
+            </div>
+        </main>
+    </div>
+
+    <script>
+        async function fetchAndGenerateTestCases() {
+            const issueKey = document.getElementById('jiraIssueKey').value.trim().toUpperCase();
+            const errorDiv = document.getElementById('error');
+            const loadingDiv = document.getElementById('loading');
+            const loadingMessage = document.getElementById('loadingMessage');
+            const generateBtn = document.getElementById('generateBtn');
+
+            // Clear previous states
+            errorDiv.style.display = 'none';
+            document.getElementById('jiraMetadata').style.display = 'none';
+
+            if (!issueKey) {
+                errorDiv.textContent = 'Please enter a Jira issue key';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            // Disable button and show loading
+            generateBtn.disabled = true;
+            loadingDiv.style.display = 'block';
+            loadingMessage.textContent = 'Fetching story from Jira...';
+
+            try {
+                // Step 1: Fetch Jira story
+                const fetchResponse = await fetch('/jira/fetch', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ issue_key: issueKey }),
+                });
+
+                if (!fetchResponse.ok) {
+                    const error = await fetchResponse.json();
+                    throw new Error(error.error || 'Failed to fetch Jira story');
+                }
+
+                const fetchData = await fetchResponse.json();
+
+                // Show metadata
+                const metadata = fetchData.metadata;
+                document.getElementById('meta-key').textContent = metadata.key;
+                document.getElementById('meta-type').textContent = metadata.issue_type;
+                document.getElementById('meta-status').textContent = metadata.status;
+                document.getElementById('meta-assignee').textContent = metadata.assignee;
+                document.getElementById('meta-tests').textContent = fetchData.existing_test_cases_count || '0';
+                document.getElementById('jiraMetadata').style.display = 'block';
+
+                // Step 2: Generate test cases (or create empty ones in manual mode)
+                const claudeEnabled = document.body.getAttribute('data-claude-enabled') === 'true';
+                loadingMessage.textContent = claudeEnabled ? 'Generating test cases with Claude AI...' : 'Creating test case templates...';
+
+                const generateResponse = await fetch('/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ user_story: fetchData.user_story }),
+                });
+
+                if (!generateResponse.ok) {
+                    const error = await generateResponse.json();
+                    throw new Error(error.error || 'Failed to generate test cases');
+                }
+
+                // Redirect to review page
+                window.location.href = '/review';
+
+            } catch (error) {
+                errorDiv.textContent = 'Error: ' + error.message;
+                errorDiv.style.display = 'block';
+            } finally {
+                loadingDiv.style.display = 'none';
+                generateBtn.disabled = false;
+            }
+        }
+
+        // Allow Enter key to submit
+        document.getElementById('jiraIssueKey')?.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                fetchAndGenerateTestCases();
+            }
+        });
+    </script>
+</body>
+</html>
