@@ -1,0 +1,7 @@
+# Tag da ignorare al momento del caricamento su Jira
+# Un tag per riga, senza il simbolo @
+# Le righe che iniziano con # sono commenti
+
+Automated_UI
+WIP
+Draft
