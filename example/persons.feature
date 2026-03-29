@@ -1,12 +1,12 @@
 Feature: Person Management
 
-  @SCRUM-7 @AC1 @Automated_UI @WIP @Draft
+  @SCRUM-7 @AC1 @Automated_UI @WIP @Draft @UI_Functional_Test @PersonMangement
   Scenario: Show list of persons
     Given the user is logged
     When the user navigates on persons list page
     Then the system shows a table with column name and column surname
 
-  @SCRUM-8 @AC2 @Automated_UI @WIP @Draft
+  @SCRUM-8 @AC2 @Automated_UI @WIP @Draft @UI_Functional_Test @PersonMangement
   Scenario: Create a new person
     Given the user is logged
     When the user navigates on create person page
