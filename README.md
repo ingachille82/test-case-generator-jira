@@ -10,7 +10,7 @@ In addition to uploading scenarios, it is possible to add and/or update labels o
 1a. Create the .env file in the test-cases-generator-main folder
     with the following content:
 
-    JIRA_BASE_URL=https://ingachille82-testing-gherkin-upload.atlassian.net
+    JIRA_BASE_URL=https://<jira url>.atlassian.net
     JIRA_TOKEN=Basic <YOUR_BASE64>
     JIRA_PROJECT_KEY=SCRUM
     JIRA_TEST_ISSUE_TYPE=Task
@@ -22,7 +22,7 @@ In addition to uploading scenarios, it is possible to add and/or update labels o
 
 1b. Generate the Base64 (in terminal 2, one command at a time):
 
-    $base64 = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("ingachille82@yahoo.it:YOUR_API_TOKEN"))
+    $base64 = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("ACCOUNT EMAIL:YOUR_API_TOKEN"))
     Write-Host $base64
 
     Copy the output and paste it into the .env file as the value of JIRA_TOKEN
@@ -56,7 +56,7 @@ Command 1 - Read the feature file:
   $feature = Get-Content -Raw "example\persons.feature"
 
 Command 2 - Build the request body:
-  $body = ConvertTo-Json -Depth 5 @{ userStoryKey = "SCRUM-2"; gherkinContent = [string]$feature }
+  $body = ConvertTo-Json -Depth 5 @{ userStoryKey = <User Story key>; gherkinContent = [string]$feature }
 
 Command 3 - Send the request:
   Invoke-RestMethod -Uri "http://localhost:3000/api/gherkin-to-jira" -Method POST -ContentType "application/json" -Body $body
@@ -69,7 +69,7 @@ Server health check:
   Invoke-RestMethod -Uri "http://localhost:3000/health"
 
 Jira authentication check:
-  Invoke-RestMethod -Uri "https://ingachille82-testing-gherkin-upload.atlassian.net/rest/api/3/myself" -Headers @{ Authorization = "Basic $base64"; Accept = "application/json" }
+  Invoke-RestMethod -Uri "https://<jira url>.atlassian.net/rest/api/3/myself" -Headers @{ Authorization = "Basic $base64"; Accept = "application/json" }
 
 -----------------------------------------------------
 NOTES
