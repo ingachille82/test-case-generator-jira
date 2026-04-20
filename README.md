@@ -1,3 +1,8 @@
+Il presente progetto è destinato ai functional tester che scrivono scenari in file con estensione .feature
+L'applicativo consente il caricamento in Atlassian Jira degli scenari presenti nel feature, linkandoli ad una specifica Storia/Task o generico Item Jira. 
+I file devono essere scritti con sintassi Gherkin (Give, When, Then).
+Oltre a caricare gli scenari, è possibile aggiungere e/o aggiornare le label presenti nell'item Jira. Al momento dell'upload verranno letti i tag presenti sullo scenario e trasformati in label.
+
 -----------------------------------------------------
 1. CONFIGURAZIONE INIZIALE (una volta sola)
 -----------------------------------------------------
