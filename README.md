@@ -1,86 +1,90 @@
-Il presente progetto è destinato ai functional tester che scrivono scenari in file con estensione .feature
-L'applicativo consente il caricamento in Atlassian Jira degli scenari presenti nel feature, linkandoli ad una specifica Storia/Task o generico Item Jira. 
-I file devono essere scritti con sintassi Gherkin (Give, When, Then).
-Oltre a caricare gli scenari, è possibile aggiungere e/o aggiornare le label presenti nell'item Jira. Al momento dell'upload verranno letti i tag presenti sullo scenario e trasformati in label.
+This project is intended for functional testers who write scenarios in files with the .feature extension.
+The application allows uploading scenarios from a feature file to Atlassian Jira, linking them to a specific Story/Task or generic Jira item.
+Files must be written using Gherkin syntax (Given, When, Then).
+In addition to uploading scenarios, it is possible to add and/or update labels on the Jira item. During upload, the tags present on the scenario will be read and converted into labels.
 
 -----------------------------------------------------
-1. CONFIGURAZIONE INIZIALE (una volta sola)
+1. INITIAL SETUP (one time only)
 -----------------------------------------------------
 
-1a. Crea il file .env nella cartella test-cases-generator-main
-    con il seguente contenuto:
+1a. Create the .env file in the test-cases-generator-main folder
+    with the following content:
 
     JIRA_BASE_URL=https://ingachille82-testing-gherkin-upload.atlassian.net
-    JIRA_TOKEN=Basic <IL_TUO_BASE64>
+    JIRA_TOKEN=Basic <YOUR_BASE64>
     JIRA_PROJECT_KEY=SCRUM
     JIRA_TEST_ISSUE_TYPE=Task
     JIRA_LINK_TYPE=Blocks
     PORT=3000
 
-    Nota: sostituisci <IL_TUO_BASE64> con il valore generato
-    al punto 1b qui sotto.
+    Note: replace <YOUR_BASE64> with the value generated
+    in step 1b below.
 
-1b. Genera il Base64 (nel terminale 2, un comando alla volta):
+1b. Generate the Base64 (in terminal 2, one command at a time):
 
-    $base64 = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("ingachille82@yahoo.it:IL_TUO_API_TOKEN"))
+    $base64 = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("ingachille82@yahoo.it:YOUR_API_TOKEN"))
     Write-Host $base64
 
-    Copia l'output e incollalo nel file .env come valore di JIRA_TOKEN
-    nel formato: Basic <output>
+    Copy the output and paste it into the .env file as the value of JIRA_TOKEN
+    in the format: Basic <output>
 
-    Nota: genera un nuovo API Token su
+    Note: generate a new API Token at
     https://id.atlassian.com/manage-profile/security/api-tokens
 
-1c. Installa le dipendenze (nel terminale 1):
+1c. Install dependencies (in terminal 1):
 
     npm install dotenv
 
 -----------------------------------------------------
-2. AVVIO DEL SERVER
+2. STARTING THE SERVER
 -----------------------------------------------------
 
-Nel Terminale 1 di VS Code, dalla cartella test-cases-generator-main:
+In VS Code Terminal 1, from the test-cases-generator-main folder:
 
   npm start
 
-Il server è attivo quando vedi:
+The server is running when you see:
   Gherkin→Jira API listening on port 3000
 
-  Nota: non servono più le variabili $env: grazie al file .env
+  Note: $env: variables are no longer needed thanks to the .env file
 
 -----------------------------------------------------
-3. CHIAMATA API (Terminale 2)
+3. API CALL (Terminal 2)
 -----------------------------------------------------
 
-Comando 1 - Leggi il feature file:
+Command 1 - Read the feature file:
   $feature = Get-Content -Raw "example\persons.feature"
 
-Comando 2 - Costruisci il body:
+Command 2 - Build the request body:
   $body = ConvertTo-Json -Depth 5 @{ userStoryKey = "SCRUM-2"; gherkinContent = [string]$feature }
 
-Comando 3 - Lancia la chiamata:
+Command 3 - Send the request:
   Invoke-RestMethod -Uri "http://localhost:3000/api/gherkin-to-jira" -Method POST -ContentType "application/json" -Body $body
 
 -----------------------------------------------------
-4. VERIFICA
+4. VERIFICATION
 -----------------------------------------------------
 
-Health check del server:
+Server health check:
   Invoke-RestMethod -Uri "http://localhost:3000/health"
 
-Verifica autenticazione Jira:
+Jira authentication check:
   Invoke-RestMethod -Uri "https://ingachille82-testing-gherkin-upload.atlassian.net/rest/api/3/myself" -Headers @{ Authorization = "Basic $base64"; Accept = "application/json" }
 
+-----------------------------------------------------
+NOTES
+-----------------------------------------------------
 
+- The server must be restarted every time VS Code is opened
+- The $feature and $body variables must be rebuilt
+  every time a new terminal is opened
+- To change the User Story, update the "userStoryKey" value
+  in Command 2 of section 3
+- To use a different .feature file, update the path
+  in Command 1 of section 3
+- When the Jira token expires, update only JIRA_TOKEN in the .env file
+  and restart the server
 
-- Il server va riavviato ogni volta che si apre VS Code
-- Le variabili $feature e $body vanno ricostruite
-  ogni volta che si apre un nuovo terminale
-- Per cambiare User Story, modifica il valore "userStoryKey"
-  nel Comando 2 della sezione 3
-- Per usare un file .feature diverso, modifica il percorso
-  nel Comando 1 della sezione 3
-- Quando il token Jira scade, aggiorna solo JIRA_TOKEN nel file .env
-  e riavvia il server
+=====================================================
 
 =====================================================
